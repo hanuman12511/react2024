@@ -1,3 +1,5 @@
+
+export const banner=[]
 export const  menu=["About","Shop","More"]
 export const shop=[
     {
