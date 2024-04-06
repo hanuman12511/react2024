@@ -1,0 +1,21 @@
+.menubar{
+    list-style-type: none;
+    display: flex;
+}
+.menubar li{
+    padding: 20px;
+}
+.header{
+    color:aquamarine
+}
+.nav{
+   text-decoration: none;
+   color: rgb(0, 0, 0);
+   display: inline-block;
+   padding: 10px;
+}
+
+.banenrimag{
+    width: 100%;
+    height: 100%;
+}
