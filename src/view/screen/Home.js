@@ -3,8 +3,9 @@ import{product} from '../data/data'
 import Carousel from 'react-bootstrap/Carousel';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
+import { useEffect, useState } from 'react';
 function Home(){
-   
+
 return(
 <>
 <Container>
@@ -27,7 +28,7 @@ return(
             <h1>Our Product</h1>
             <Row>
                 {
-                product.map(d=>(
+           product.map(d=>(
                     <Col >
                        <Card style={{ width: '100%' }}>
                         <Card.Img variant="top" src={d.img} />

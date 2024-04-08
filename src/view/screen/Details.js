@@ -4,12 +4,23 @@ import Card from 'react-bootstrap/Card';
 
 import Accordion from 'react-bootstrap/Accordion';
 import {bestseller} from '../data/data'
+import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 function Details(){
+    const loc = useLocation()
+    const[productdetails ,setProductDetails] = useState('')
+
+    useEffect (()=>{
+        console.log(loc.state);
+        setProductDetails(loc.state)
+    },[])
+
+    console.log(productdetails);
     return(
         <Container>
         <Row>
             <Col lg={6}>
-                <Image src={require('../image/17-10-2023nicol02554.webp')} fluid/>
+                <Image src={productdetails.img} fluid/>
             </Col>
             <Col lg={6}>
                 <Row>
