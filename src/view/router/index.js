@@ -6,10 +6,19 @@ import About from '../screen/About';
 import Shop from '../screen/Shop';
 import HomeScreen from '../screen/HomeScreen';
 import Details from '../screen/Details';
+import Login from '../screen/Login';
+import { useEffect, useState } from 'react';
 
 function  RouterNav(){
+   const [userdata,setUserData] = useState('')
+
+   useEffect(()=>{
+
+    setUserData(localStorage.getItem('user'))
+
+   },[])
    
-    console.log(menu);
+   console.log(userdata);
     return(
         <>
       {/*   <ul className='menubar'>
@@ -25,11 +34,21 @@ function  RouterNav(){
         </ul> */}
             <Routes>
               
-                <Route path='/' Component={Home}/>
-                <Route path='/home' Component={HomeScreen}/>
+               
+               
                 <Route path='/about' Component={About}/>
                 <Route path='/shop' Component={Shop}/>
                 <Route path='/details' Component={Details}/>
+               
+               { userdata!==null?<>
+                <Route path='/' Component={Home}/>
+               </>
+               :
+                <>
+               <Route path='/' Component={Login}/>
+                <Route path='/home' Component={Home}/>
+                </>
+            }
                
             </Routes>
         </>
