@@ -17,20 +17,16 @@ setPassword(event.target.value)
 }
 
 const onPressLogin=()=>{
-    console.log(email);
-    console.log(password);
-    console.log("login");
-
-    const param = {
+     const param = {
         email:email,
         password:password
     }
-
-localStorage.setItem("user",param)
     console.log(param);
+localStorage.setItem("user",param)
+   
     setmail("")
     setPassword("")
-window.location="/"
+window.location="/" 
 }
 
     return(

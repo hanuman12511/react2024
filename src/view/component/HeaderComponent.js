@@ -5,7 +5,15 @@ import Form from 'react-bootstrap/Form';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
 import NavDropdown from 'react-bootstrap/NavDropdown';
+import { useEffect, useState } from "react";
 export default function HeaderComponent(){
+
+  const[user,setUser] = useState('')
+
+  useEffect(()=>{
+    setUser(localStorage.getItem('user'))
+
+  },[])
     return(
         <Container>
             <Row>
@@ -37,9 +45,23 @@ export default function HeaderComponent(){
                 Something else here
               </NavDropdown.Item>
             </NavDropdown>
-            <Nav.Link href="#" disabled>
-              Link
+            {
+              user?
+                  <Nav.Link href="/logout" >
+                  Logout
+                </Nav.Link>
+              :
+              <>
+            <Nav.Link href="/login" >
+              Login
             </Nav.Link>
+            <Nav.Link href="/register" >
+              Register
+            </Nav.Link>
+            </>
+            
+            
+          }
           </Nav>
           <Form className="d-flex">
             <Form.Control

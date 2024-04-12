@@ -8,6 +8,7 @@ import HomeScreen from '../screen/HomeScreen';
 import Details from '../screen/Details';
 import Login from '../screen/Login';
 import { useEffect, useState } from 'react';
+import Logout from '../screen/Logout';
 
 function  RouterNav(){
    const [userdata,setUserData] = useState('')
@@ -39,14 +40,15 @@ function  RouterNav(){
                 <Route path='/about' Component={About}/>
                 <Route path='/shop' Component={Shop}/>
                 <Route path='/details' Component={Details}/>
+                <Route path='/logout' Component={Logout}/>
                
                { userdata!==null?<>
                 <Route path='/' Component={Home}/>
                </>
                :
                 <>
-               <Route path='/' Component={Login}/>
-                <Route path='/home' Component={Home}/>
+               <Route path='/login' Component={Login}/>
+                <Route path='/' Component={Home}/>
                 </>
             }
                

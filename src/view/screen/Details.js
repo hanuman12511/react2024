@@ -25,7 +25,7 @@ function Details(){
             <Col lg={6}>
                 <Row>
                     <Col><p>Dark Grey Colour Lycra Pants</p></Col>
-                    <Col><p>Rs. 1,399.00</p></Col>
+                    <Col><p>Rs.{productdetails.rate}</p></Col>
                 </Row>
                 <Row>
                     <Col>
@@ -34,7 +34,7 @@ function Details(){
                         <Image src={require('../image/Logo/icons8-star-100.png')} style={{width:20}}/>
                         <Image src={require('../image/Logo/icons8-star-100.png')} style={{width:20}}/>
                         <Image src={require('../image/Logo/icons8-star-100.png')} style={{width:20}}/>
-                        <span>23 reviews</span>
+                        <span>{productdetails.ratinguser} reviews</span>
                     </Col>
                 </Row>
                 <Row>
@@ -42,13 +42,13 @@ function Details(){
                     <p>size</p>
                     <Row>
                         <Col>
-                        <Button variant="outline-primary">S</Button>{'     '}
-                        <Button variant="outline-primary">S</Button>{'     '}
-                        <Button variant="outline-primary">S</Button>{'     '}
-                        <Button variant="outline-primary">S</Button>{'     '}
-                        <Button variant="outline-primary">S</Button>{'     '}
-                        <Button variant="outline-primary">S</Button>{'     '}
-                        </Col>
+                        {
+                       productdetails&& productdetails.size.map(d=>(
+                                <Button variant="outline-primary">{d}</Button>
+                      
+                        ))
+                         }
+                         </Col>
                     </Row>
 
                     <Row>

@@ -38,9 +38,7 @@ export default function Header() {
                   Something else here
                 </NavDropdown.Item>
               </NavDropdown>
-              <Nav.Link href="#" disabled>
-               Contact Us
-              </Nav.Link>
+              
             </Nav>
             <Form className="d-flex">
               <Form.Control
