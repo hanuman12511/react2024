@@ -6,7 +6,12 @@ import Accordion from 'react-bootstrap/Accordion';
 import {bestseller} from '../data/data'
 import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { addtocart  } from "../data/data";
+import { useNavigate } from "react-router-dom";
 function Details(){
+    const nav = useNavigate()
+    const[img,setImage] = useState('')
+    
     const loc = useLocation()
     const[productdetails ,setProductDetails] = useState('')
 
@@ -16,11 +21,28 @@ function Details(){
     },[])
 
     console.log(productdetails);
+
+    function ImageChange(img){
+        setImage(img)
+    }
+    function OnAddtocart(){
+console.log("add to cart");
+addtocart.push(productdetails)
+nav("/addtocart",{state:productdetails})
+    }
     return(
         <Container>
         <Row>
             <Col lg={6}>
-                <Image src={productdetails.img} fluid/>
+                <Image src={img?img:productdetails.img} fluid/>
+                <Row>
+                    {productdetails&&productdetails.sideimage.map(img=>(
+                        <Col onClick={()=>ImageChange(img)}>
+                        <Image src={img} style={{width:100,height:100}}/>
+                        </Col>
+                    ))
+                    }
+                </Row>
             </Col>
             <Col lg={6}>
                 <Row>
@@ -82,7 +104,7 @@ function Details(){
                     </Row>
                         <Row>
                             <Col>
-                            <Button variant="primary" style={{width:"100%"}}>Add To Cart</Button>
+                            <Button variant="primary" style={{width:"100%"}} onClick={OnAddtocart}>Add To Cart</Button>
                             </Col>
                         </Row>
                         <Row>

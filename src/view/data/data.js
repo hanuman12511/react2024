@@ -1,6 +1,8 @@
 
 export const banner=[]
 export const  menu=["About","Shop","More"]
+
+export let addtocart=[]
 export const shop=[
     {
         id:1,
@@ -11,7 +13,10 @@ export const shop=[
         "rating":4,
         "ratinguser":34,
         "size":["S","M","L","XL"],
-        "color":["Red","Black","White","Blue","pink","green"]
+        "color":["Red","Black","White","Blue","pink","green"],
+        "sideimage":[
+        require('../image/wine&ash/17-10-2023nicol02600_eaf6e809-8b3e-48b8-99c4-3496f763b41d.webp'),
+        require('../image/wine&ash/17-10-2023nicol02606_df29521d-4dad-4098-8030-9309cd63bfdd.webp'),require('../image/wine&ash/17-10-2023nicol02635_b71141bd-cd29-4340-89cf-7700462532c2.webp'),require('../image/wine&ash/17-10-2023nicol02640_82c6e302-c554-456d-ac99-ee4b1455fe57.webp')]
     },
     {
         id:2,
@@ -22,8 +27,12 @@ export const shop=[
         "rating":4,
         "ratinguser":30,
         "size":["S","M","XL","XXl"],
-        "color":["Red","Black","White","Blue","pink","green"]
+        "color":["Red","Black","White","Blue","pink","green"],
+         "sideimage":[
+        require('../image/wine&ash/17-10-2023nicol02600_eaf6e809-8b3e-48b8-99c4-3496f763b41d.webp'),
+        require('../image/wine&ash/17-10-2023nicol02606_df29521d-4dad-4098-8030-9309cd63bfdd.webp'),require('../image/wine&ash/17-10-2023nicol02635_b71141bd-cd29-4340-89cf-7700462532c2.webp'),require('../image/wine&ash/17-10-2023nicol02640_82c6e302-c554-456d-ac99-ee4b1455fe57.webp')]
     },
+    
     {
         id:3,
         "name":"Beige Buta Short Kurti",
@@ -34,6 +43,9 @@ export const shop=[
         "ratinguser":39,
         "size":["S","M","L","XL","XXl"],
         "color":["Red","Black","White","Blue","pink","green"],
+        "sideimage":[
+            require('../image/wine&ash/17-10-2023nicol02600_eaf6e809-8b3e-48b8-99c4-3496f763b41d.webp'),
+            require('../image/wine&ash/17-10-2023nicol02606_df29521d-4dad-4098-8030-9309cd63bfdd.webp'),require('../image/wine&ash/17-10-2023nicol02635_b71141bd-cd29-4340-89cf-7700462532c2.webp'),require('../image/wine&ash/17-10-2023nicol02640_82c6e302-c554-456d-ac99-ee4b1455fe57.webp')]
     },
     {
         id:4,
@@ -44,7 +56,10 @@ export const shop=[
         "rating":4,
         "ratinguser":32,
         "size":["S","M","L","XL","XXl"],
-        "color":["Red","Black","White","Blue","pink","green"]
+        "color":["Red","Black","White","Blue","pink","green"],
+        "sideimage":[
+            require('../image/wine&ash/17-10-2023nicol02600_eaf6e809-8b3e-48b8-99c4-3496f763b41d.webp'),
+            require('../image/wine&ash/17-10-2023nicol02606_df29521d-4dad-4098-8030-9309cd63bfdd.webp'),require('../image/wine&ash/17-10-2023nicol02635_b71141bd-cd29-4340-89cf-7700462532c2.webp'),require('../image/wine&ash/17-10-2023nicol02640_82c6e302-c554-456d-ac99-ee4b1455fe57.webp')]
     },
     {
         id:5,
@@ -55,7 +70,10 @@ export const shop=[
         "rating":4,
         "ratinguser":35,
         "size":["S","M","L","XL","XXl"],
-        "color":["Red","Black","White","Blue","pink","green"]
+        "color":["Red","Black","White","Blue","pink","green"],
+        "sideimage":[
+            require('../image/wine&ash/17-10-2023nicol02600_eaf6e809-8b3e-48b8-99c4-3496f763b41d.webp'),
+            require('../image/wine&ash/17-10-2023nicol02606_df29521d-4dad-4098-8030-9309cd63bfdd.webp'),require('../image/wine&ash/17-10-2023nicol02635_b71141bd-cd29-4340-89cf-7700462532c2.webp'),require('../image/wine&ash/17-10-2023nicol02640_82c6e302-c554-456d-ac99-ee4b1455fe57.webp')]
     },
     {
         id:6,
@@ -66,7 +84,10 @@ export const shop=[
         "rating":4,
         "ratinguser":34,
         "size":["S","M","L","XL","XXl"],
-        "color":["Red","Black","White","Blue","pink","green"]
+        "color":["Red","Black","White","Blue","pink","green"],
+        "sideimage":[
+            require('../image/wine&ash/17-10-2023nicol02600_eaf6e809-8b3e-48b8-99c4-3496f763b41d.webp'),
+            require('../image/wine&ash/17-10-2023nicol02606_df29521d-4dad-4098-8030-9309cd63bfdd.webp'),require('../image/wine&ash/17-10-2023nicol02635_b71141bd-cd29-4340-89cf-7700462532c2.webp'),require('../image/wine&ash/17-10-2023nicol02640_82c6e302-c554-456d-ac99-ee4b1455fe57.webp')]
     },
 ]
 export const product=[

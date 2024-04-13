@@ -1,0 +1,799 @@
+//@ts-check
+
+const googleScript = document.createElement("script");
+googleScript.setAttribute("src", "https://accounts.google.com/gsi/client");
+document.head.append(googleScript);
+
+const baseUrl = "https://api.bitbybit.studio";
+const apiUrl = `${baseUrl}/bitlogin/api`;
+let redirectUrl;
+
+let configCacheSet = false;
+let locationCacheSet = false;
+let oneTapSet = false;
+
+let errorConfig = false;
+let errorLocation = false;
+
+let cache = {};
+
+(async () => {
+  let host = window.location.host;
+  if (host === "admin.shopify.com") {
+    host = `${window.location.pathname.split("/")[2]}.myshopify.com`;
+  }
+
+  const urlSearchParams = new URLSearchParams(window.location.search);
+  const checkoutUrl = urlSearchParams.get("checkout_url");
+
+  let isInitializing = false;
+  let skip = false;
+  const queue = [];
+
+  function promptError() {
+    console.error(
+      "⚠️ bitLogin extensions disabled due to invalid/stale configuration.\n" +
+        "To fix this issue, please follow either of these steps:\n" +
+        "1. Reinstall the app from Shopify: https://apps.shopify.com/bitbybit-google-signin\n" +
+        "2. Set it up manually via: https://app.bitbybit.studio"
+    );
+  }
+
+  async function init({ inputRefs, index }) {
+    if (errorConfig) {
+      promptError();
+      return;
+    }
+
+    if (isInitializing) {
+      queue.push(() => init({ inputRefs, index }));
+      return;
+    }
+
+    isInitializing = true;
+
+    try {
+      let bitLoginSectionRoot = document.querySelector(
+        `.bitlogin-root[data-index="${index}"]`
+      );
+
+      const formRef = inputRefs[index]?.closest(
+        "form:not([action='/account/recover'])"
+      );
+
+      if (formRef && !bitLoginSectionRoot) {
+        await Promise.all([getConfig({ host, checkoutUrl }), getLocation()]);
+
+        if (errorConfig) {
+          promptError();
+          return;
+        }
+
+        setupOneTap({ host });
+
+        bitLoginSectionRoot = document.createElement(`div`);
+
+        bitLoginSectionRoot.setAttribute("class", "bitlogin-root");
+        bitLoginSectionRoot.setAttribute("data-index", `${index}`);
+
+        await initAppearance({
+          formRef,
+          bitLoginSectionRoot,
+          host,
+        });
+      }
+    } catch (err) {
+      console.error(`error while initiating bitlogin extensions`, err);
+    } finally {
+      // Release the lock
+      isInitializing = false;
+
+      // Check if there are pending items in the queue
+      if (queue.length > 0) {
+        // Process the next function in the queue
+        const nextFunction = queue.shift();
+        nextFunction();
+      }
+    }
+  }
+
+  async function initAll() {
+    const inputRefs = document.querySelectorAll(
+      'input[name="customer[email]"]:not([type="hidden"])'
+    );
+
+    for (let i = 0; i < inputRefs.length; i++) {
+      await init({ inputRefs, index: i });
+    }
+  }
+
+  const observer = new MutationObserver((mutationsList) => {
+    for (let mutation of mutationsList) {
+      if (mutation.type === "childList") {
+        initAll();
+      }
+    }
+  });
+
+  observer.observe(document, {
+    childList: true,
+    subtree: true,
+  });
+
+  initAll();
+})();
+
+window.addEventListener("load", () => {
+  window.addEventListener("message", (event) => {
+    const receivedData = event.data;
+
+    if (receivedData.type === "authorize") {
+      post(
+        JSON.parse(
+          JSON.stringify({
+            "customer[email]": receivedData.email,
+            "customer[password]": receivedData.password,
+            form_type: "customer_login",
+            utf8: "✓",
+            return_url: redirectUrl,
+          })
+        )
+      );
+    }
+  });
+});
+
+async function initAppearance({ formRef, bitLoginSectionRoot, host }) {
+  updateAppearance({
+    formRef,
+    rootRef: bitLoginSectionRoot,
+    host,
+  });
+}
+
+async function getConfig({ host, checkoutUrl }) {
+  if (configCacheSet) return;
+
+  const res = await fetch(
+    `${apiUrl}/config/domain/${host}/embed?deviceType=web`
+  );
+
+  if (!res.ok) {
+    console.error(`error retrieving config...`, res.status);
+    errorConfig = true;
+  } else {
+    const response = await res.json();
+    const { config, appearance } = response;
+    cache.config = config;
+    cache.appearance = appearance;
+
+    redirectUrl = checkoutUrl || cache.appearance.redirectLink;
+
+    configCacheSet = true;
+    errorConfig = false;
+  }
+}
+
+function updateAppearance({ formRef, rootRef, host }) {
+  if (!formRef) return;
+
+  const data = cache.appearance || {
+    style: "square",
+    hasShadow: false,
+    colorScheme: "match",
+    backgroundColor: "#FFFFFF",
+    outlineColor: "#000000",
+    textColor: "#000000",
+    position: "bottom",
+    hideDivider: "false",
+    dividerText: "OR",
+    size: "small",
+    format: "contentFlex",
+    language: "en",
+    buttonText: "Continue with",
+    redirectLink: "/account",
+    googleOneTap: true,
+    googleOneTapBanner: true,
+    buttonList: {
+      google: "Continue with Google",
+      facebook: "Continue with Facebook",
+      apple: "Continue with Apple",
+      whatsapp: "Continue with WhatsApp",
+      microsoft: "Continue with Microsoft",
+      twitter: "Continue with Twitter",
+    },
+  };
+
+  const isHasGoogle = cache.config.some(
+    (config) => config.provider === "GOOGLE" && config.enabledWeb
+  );
+  const isHasFacebook = cache.config.some(
+    (config) => config.provider === "FACEBOOK" && config.enabledWeb
+  );
+  const isHasApple = cache.config.some(
+    (config) => config.provider === "APPLE" && config.enabledWeb
+  );
+  const isHasWhatsapp = cache.config.some(
+    (config) => config.provider === "WHATSAPP" && config.enabledWeb
+  );
+  const isHasMicrosoft = cache.config.some(
+    (config) => config.provider === "MICROSOFT" && config.enabledWeb
+  );
+  const isHasTwitter = cache.config.some(
+    (config) => config.provider === "TWITTER" && config.enabledWeb
+  );
+
+  if (isHasGoogle) {
+    rootRef.innerHTML += googleLoginHtml(
+      data.colorScheme || "match",
+      data.textColor
+    );
+  }
+
+  if (isHasFacebook) {
+    rootRef.innerHTML += facebookLoginHtml(
+      data.colorScheme || "match",
+      data.textColor
+    );
+  }
+
+  if (isHasApple) {
+    rootRef.innerHTML += appleLoginHtml(
+      data.colorScheme || "match",
+      data.textColor
+    );
+  }
+
+  if (isHasWhatsapp) {
+    rootRef.innerHTML += whatsappLoginHtml(
+      data.colorScheme || "match",
+      data.textColor
+    );
+  }
+
+  if (isHasMicrosoft) {
+    rootRef.innerHTML += microsoftLoginHtml(
+      data.colorScheme || "match",
+      data.textColor
+    );
+  }
+
+  if (isHasTwitter) {
+    rootRef.innerHTML += twitterLoginHtml(
+      data.colorScheme || "match",
+      data.textColor
+    );
+  }
+
+  const divider = document.createElement("div");
+  const dividerStyle = !data.hideDivider
+    ? "text-align:center;margin-block:16px"
+    : "text-align:center;margin-block:16px;color:transparent;";
+  divider.setAttribute("style", dividerStyle);
+  divider.innerHTML = !data.hideDivider ? data.dividerText : "-";
+
+  if (data.position === "bottom") {
+    formRef.appendChild(divider);
+    formRef.appendChild(rootRef);
+  } else if (data.position === "top") {
+    formRef.prepend(divider);
+    formRef.prepend(rootRef);
+  }
+
+  const googleLoginRef = formRef.querySelector("#google-login");
+  const facebookLoginRef = formRef.querySelector("#facebook-login");
+  const appleLoginRef = formRef.querySelector("#apple-login");
+  const whatsappLoginRef = formRef.querySelector("#whatsapp-login");
+  const microsoftLoginRef = formRef.querySelector("#microsoft-login");
+  const twitterLoginRef = formRef.querySelector("#twitter-login");
+
+  if (data.format !== "wrapperFlexContainerOnlyLogo") {
+    if (googleLoginRef) {
+      googleLoginRef.innerHTML += `<p>${data.buttonList.google}</p>`;
+    }
+    if (facebookLoginRef) {
+      facebookLoginRef.innerHTML += `<p>${data.buttonList.facebook}</p>`;
+    }
+    if (appleLoginRef) {
+      appleLoginRef.innerHTML += `<p>${data.buttonList.apple}</p>`;
+    }
+    if (whatsappLoginRef) {
+      whatsappLoginRef.innerHTML += `<p>${data.buttonList.whatsapp}</p>`;
+    }
+    if (microsoftLoginRef) {
+      microsoftLoginRef.innerHTML += `<p>${data.buttonList.microsoft}</p>`;
+    }
+    if (twitterLoginRef) {
+      twitterLoginRef.innerHTML += `<p>${data.buttonList.twitter}</p>`;
+    }
+  }
+
+  addListener({
+    googleButton: googleLoginRef,
+    facebookButton: facebookLoginRef,
+    appleButton: appleLoginRef,
+    whatsappButton: whatsappLoginRef,
+    microsoftButton: microsoftLoginRef,
+    twitterButton: twitterLoginRef,
+    host,
+  });
+
+  if (googleLoginRef) {
+    updateElementStyle({ data, dom: googleLoginRef, rootRef });
+  }
+
+  if (facebookLoginRef) {
+    updateElementStyle({ data, dom: facebookLoginRef, rootRef });
+  }
+
+  if (appleLoginRef) {
+    updateElementStyle({ data, dom: appleLoginRef, rootRef });
+  }
+
+  if (whatsappLoginRef) {
+    updateElementStyle({ data, dom: whatsappLoginRef, rootRef });
+  }
+
+  if (microsoftLoginRef) {
+    updateElementStyle({ data, dom: microsoftLoginRef, rootRef });
+  }
+
+  if (twitterLoginRef) {
+    updateElementStyle({ data, dom: twitterLoginRef, rootRef });
+  }
+}
+
+function updateElementStyle({ data, dom, rootRef }) {
+  if (data.hasShadow) {
+    const shadowProperties = `0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)`;
+    dom.style["box-shadow"] = shadowProperties;
+  }
+  const radiusProperties =
+    data.style === "rounded"
+      ? "8px"
+      : data.style === "square"
+      ? "0px"
+      : data.style === "fullRounded"
+      ? data.format === "wrapperFlexContainerOnlyLogo"
+        ? "50%"
+        : "50px"
+      : undefined;
+  dom.style["border-radius"] = radiusProperties;
+  const sizeProperties =
+    data.size === "medium"
+      ? "12px"
+      : data.size === "small"
+      ? "8px"
+      : data.size === "large"
+      ? "16px"
+      : "8px";
+
+  dom.style["padding-block"] = sizeProperties;
+
+  if (data.format) {
+    if (
+      data.format === "contentFlexReverse" ||
+      data.format === "contentFlexCenterReverse"
+    ) {
+      const flexDir = `row-reverse`;
+      dom.style["flex-direction"] = flexDir;
+    }
+    if (
+      data.format === "contentFlexCenter" ||
+      data.format === "contentFlexCenterReverse"
+    ) {
+      const justifyContent = `center`;
+      dom.style["justify-content"] = justifyContent;
+    } else if (
+      data.format === "contentFlex" ||
+      data.format === "contentFlexReverse"
+    ) {
+      const googleLoginTextRef = dom.querySelector("p");
+      googleLoginTextRef.style["flex-grow"] = 1;
+      googleLoginTextRef.style["text-align"] = "center";
+    }
+
+    if (data.format === "wrapperFlexContainerOnlyLogo") {
+      rootRef.style["flex-direction"] = "row";
+      rootRef.style["gap"] = "8px";
+      rootRef.style["display"] = "flex";
+      rootRef.style["flex-wrap"] = "wrap";
+
+      const sizeMapping = {
+        small: "52px",
+        medium: "62px",
+        large: "72px",
+      };
+      const size = sizeMapping[data.size] || "52px";
+
+      dom.style["margin"] = 0;
+      dom.style["width"] =
+        data.format === "wrapperFlexContainerOnlyLogo" ? size : "52px";
+      dom.style["height"] =
+        data.format === "wrapperFlexContainerOnlyLogo" ? size : "52px";
+      dom.style["display"] = "flex";
+      dom.style["align-items"] = "center";
+      dom.style["justify-content"] = "center";
+
+      dom.querySelector("svg").style["flex"] = "none";
+    }
+  }
+
+  if (data.colorScheme === "black") {
+    dom.classList.add("scheme-black");
+  } else if (data.colorScheme === "white") {
+    dom.classList.add("scheme-white");
+  } else if (data.colorScheme === "custom") {
+    dom.style["background-color"] = data.backgroundColor;
+    dom.style["color"] = data.textColor;
+    dom.style["border-color"] = data.outlineColor;
+  } else if (data.colorScheme === "match") {
+    dom.classList.add("scheme-match");
+  } else if (data.colorScheme === "matchOutline") {
+    dom.classList.add("scheme-match-outline");
+  }
+}
+
+function addListener({
+  googleButton,
+  facebookButton,
+  appleButton,
+  whatsappButton,
+  microsoftButton,
+  twitterButton,
+  host,
+}) {
+  googleButton?.addEventListener("click", () =>
+    onClickSocialLogin({ provider: "google", host })
+  );
+  facebookButton?.addEventListener("click", () =>
+    onClickSocialLogin({ provider: "facebook", host })
+  );
+  appleButton?.addEventListener("click", () =>
+    onClickSocialLogin({ provider: "apple", host })
+  );
+  whatsappButton?.addEventListener("click", () =>
+    onClickSocialLogin({ provider: "whatsapp", host })
+  );
+  microsoftButton?.addEventListener("click", () =>
+    onClickSocialLogin({ provider: "microsoft", host })
+  );
+  twitterButton?.addEventListener("click", () =>
+    onClickSocialLogin({ provider: "twitter", host })
+  );
+}
+
+async function onClickSocialLogin({ provider, host }) {
+  const rand = Math.random().toString();
+
+  window.open(
+    `${apiUrl}/login/${provider}?referrerId=${rand}&shop=${host}&${objectToQueryString(
+      cache.location
+    )}`,
+    "mywindow",
+    "menubar=1,resizable=1,width=1200,height=700"
+  );
+}
+
+function objectToQueryString(obj) {
+  return Object.keys(obj)
+    .map((key) => {
+      return encodeURIComponent(key) + "=" + encodeURIComponent(obj[key]);
+    })
+    .join("&");
+}
+
+async function getLocation() {
+  if (locationCacheSet) return;
+
+  const response = await fetch("https://ipapi.co/json/");
+
+  if (!response.ok) {
+    console.error(`error retrieving location...`, response.status);
+    errorLocation = true;
+  } else {
+    const data = await response.json();
+
+    const { city, region, country_name, country_code } = data;
+
+    const formattedLocationData = {
+      city,
+      region,
+      country_name,
+      country_code,
+    };
+
+    cache.location = formattedLocationData;
+    locationCacheSet = true;
+    errorLocation = false;
+  }
+}
+
+function post(params) {
+  // The rest of this code assumes you are not using a library.
+  // It can be made less verbose if you use one.
+  const form = document.createElement("form");
+  form.method = "post";
+  form.action = `/account/login`;
+  form.acceptCharset = "UTF-8";
+  form.setAttribute("data-login-with-shop-sign-in", "true");
+  form.setAttribute("novalidate", "novalidate");
+
+  for (const key in params) {
+    if (params.hasOwnProperty(key)) {
+      const hiddenField = document.createElement("input");
+      hiddenField.type = "hidden";
+      hiddenField.name = key;
+      hiddenField.value = params[key];
+
+      form.appendChild(hiddenField);
+    }
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function setupOneTap({ host }) {
+  if (oneTapSet) return;
+
+  const oneTapClientId = cache.config.find(
+    (config) => config.provider === "GOOGLE"
+  )?.clientId;
+
+  if (cache.appearance.googleOneTap && oneTapClientId) {
+    const googleOneTapButton = document.createElement("div");
+    googleOneTapButton.setAttribute("id", "g_id_onload");
+    googleOneTapButton.setAttribute("data-client_id", oneTapClientId);
+    googleOneTapButton.setAttribute("data-context", "signin");
+    googleOneTapButton.setAttribute(
+      "data-callback",
+      "handleGoogleOneTapResponse"
+    );
+    googleOneTapButton.setAttribute("data-itp_support", "true");
+
+    const googleOneTapScript = document.createElement("script");
+
+    googleOneTapScript.innerHTML += `
+          function handleGoogleOneTapResponse(response) {
+              if (response.credential) {
+                  const idToken = response.credential;
+                  fetch('${baseUrl}/bitlogin/api/login/google-one-tap', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ idToken, shop: "${host}", ...cache.location })
+                  }).then(response => {
+                      response.json().then((data) => {
+                        post(
+                          JSON.parse(
+                            JSON.stringify({
+                              "customer[email]": data.email,
+                              "customer[password]": data.password,
+                              form_type: "customer_login",
+                              utf8: "✓",
+                              return_url: redirectUrl,
+                            })
+                          )
+                        );
+                      });  
+                  }).catch(error => {
+                      console.error('Error occurred:', error);
+                  });
+              } else {
+                  console.error('No credential available');
+              }
+          }
+       `;
+
+    document.body.append(googleOneTapButton);
+    document.body.append(googleOneTapScript);
+  }
+
+  oneTapSet = true;
+}
+
+const googleLoginHtml = (
+  theme,
+  customColor
+) => `<button id='google-login' type = 'button'>
+${
+  theme === "match" || theme === "matchOutline" || theme === "custom"
+    ? `<svg
+    xmlns='http://www.w3.org/2000/svg'
+    xmlns:v='https://vecta.io/nano'
+    width='24'
+    height='24'
+    viewBox='0 0 186.69 190.5'
+  >
+    <g transform="translate(1184.583 765.171)"><path clip-path="none" mask="none" d="M-1089.333-687.239v36.888h51.262c-2.251 11.863-9.006 21.908-19.137 28.662l30.913 23.986c18.011-16.625 28.402-41.044 28.402-70.052 0-6.754-.606-13.249-1.732-19.483z" fill="${
+      theme === "custom" ? customColor : "#4285f4"
+    }"/><path clip-path="none" mask="none" d="M-1142.714-651.791l-6.972 5.337-24.679 19.223h0c15.673 31.086 47.796 52.561 85.03 52.561 25.717 0 47.278-8.486 63.038-23.033l-30.913-23.986c-8.486 5.715-19.31 9.179-32.125 9.179-24.765 0-45.806-16.712-53.34-39.226z" fill="${
+        theme === "custom" ? customColor : "#34a853"
+      }"/><path clip-path="none" mask="none" d="M-1174.365-712.61c-6.494 12.815-10.217 27.276-10.217 42.689s3.723 29.874 10.217 42.689c0 .086 31.693-24.592 31.693-24.592-1.905-5.715-3.031-11.776-3.031-18.098s1.126-12.383 3.031-18.098z" fill="${
+        theme === "custom" ? customColor : "#fbbc05"
+      }"/><path d="M-1089.333-727.244c14.028 0 26.497 4.849 36.455 14.201l27.276-27.276c-16.539-15.413-38.013-24.852-63.731-24.852-37.234 0-69.359 21.388-85.032 52.561l31.692 24.592c7.533-22.514 28.575-39.226 53.34-39.226z" fill="${
+        theme === "custom" ? customColor : "#ea4335"
+      }" clip-path="none" mask="none"/></g>
+  </svg>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
+<path d="M24.1906 12.7758C24.1906 11.96 24.1244 11.1399 23.9833 10.3374H12.6646V14.9584H19.1463C18.8773 16.4488 18.0131 17.7672 16.7476 18.6049V21.6032H20.6146C22.8854 19.5132 24.1906 16.4267 24.1906 12.7758Z" fill="${
+        theme !== "black" ? "black" : "white"
+      }"/>
+<path d="M12.6647 24.5001C15.9011 24.5001 18.6305 23.4374 20.619 21.6031L16.7521 18.6048C15.6762 19.3368 14.2873 19.7513 12.6691 19.7513C9.53845 19.7513 6.88403 17.6391 5.93161 14.7996H1.94116V17.8904C3.97828 21.9428 8.12746 24.5001 12.6647 24.5001Z" fill="${
+        theme !== "black" ? "black" : "white"
+      }"/>
+<path d="M5.92709 14.7995C5.42442 13.3091 5.42442 11.6953 5.92709 10.205V7.11401H1.94105C0.23905 10.5048 0.23905 14.4996 1.94105 17.8903L5.92709 14.7995Z" fill="${
+        theme !== "black" ? "black" : "white"
+      }"/>
+<path d="M12.6647 5.24893C14.3755 5.22248 16.029 5.86623 17.268 7.04794L20.694 3.62188C18.5247 1.58477 15.6454 0.464802 12.6647 0.500076C8.12745 0.500076 3.97828 3.05749 1.94116 7.11408L5.9272 10.205C6.8752 7.36099 9.53403 5.24893 12.6647 5.24893Z" fill="${
+        theme !== "black" ? "black" : "white"
+      }"/>
+</svg>`
+}
+</button>`;
+
+const appleLoginHtml = (
+  theme,
+  customColor
+) => `<button id='apple-login' type='button'><svg width="24" height="24" viewBox="0 0 19 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M15.4146 22.08C14.263 23.2897 12.9925 23.1013 11.7815 22.5307C10.494 21.9489 9.31698 21.9121 7.95724 22.5307C6.26395 23.322 5.36524 23.092 4.34544 22.08C-1.4122 15.663 -0.562362 5.88801 5.98138 5.52001C7.56844 5.61201 8.6796 6.46991 9.61442 6.54121C11.0039 6.23531 12.3339 5.35901 13.8211 5.47401C15.6078 5.63041 16.9443 6.39401 17.8366 7.76711C14.161 10.1591 15.0321 15.4031 18.4082 16.8751C17.7324 18.7956 16.8656 20.6931 15.4125 22.0961L15.4146 22.08ZM9.48695 5.45101C9.31486 2.59901 11.4501 0.25301 13.9061 0.0230103C14.2439 3.31201 11.1441 5.77301 9.48695 5.45101Z" fill="${
+  theme === "custom"
+    ? customColor
+    : theme === "match" || theme === "black"
+    ? "white"
+    : "black"
+}"/>
+</svg>
+</button>`;
+
+const facebookLoginHtml = (
+  theme,
+  customColor
+) => `<button id='facebook-login' type = 'button'>
+${
+  theme === "match" || theme === "matchOutline" || theme === "custom"
+    ? `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M24 12.5C24 5.8731 18.6268 0.5 12 0.5C5.3731 0.5 0 5.8731 0 12.5C0 18.489 4.38762 23.4537 10.1252 24.355V15.9696H7.07748V12.5H10.1252V9.85562C10.1252 6.84842 11.9173 5.18622 14.6579 5.18622C15.9707 5.18622 17.3443 5.42077 17.3443 5.42077V8.37398H15.8307C14.3406 8.37398 13.8748 9.29875 13.8748 10.2488V12.4999H17.2025L16.671 15.9695H13.8747V24.3548C19.6123 23.4553 23.9998 18.4907 23.9998 12.4999L24 12.5Z" fill="${
+      theme === "custom" ? customColor : "#1977F3"
+    }"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M16.5934 16.2833L17.1251 12.8137H13.7973V10.5626C13.7973 9.61422 14.2614 8.68778 15.7532 8.68778H17.2669V5.73457C17.2669 5.73457 15.8933 5.5 14.5804 5.5C11.8399 5.5 10.0477 7.16057 10.0477 10.1694V12.8138H7V16.2834H10.0477V24.6688C10.6586 24.7648 11.2846 24.8138 11.9225 24.8138C12.5604 24.8138 13.1865 24.7631 13.7973 24.6688V16.2834H16.5936L16.5934 16.2833Z" fill="#FEFEFE"/>
+    </svg>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M24 12.5C24 5.8731 18.6268 0.5 12 0.5C5.3731 0.5 0 5.8731 0 12.5C0 18.489 4.38762 23.4537 10.1252 24.355V15.9696H7.07748V12.5H10.1252V9.85562C10.1252 6.84842 11.9173 5.18622 14.6579 5.18622C15.9707 5.18622 17.3443 5.42077 17.3443 5.42077V8.37398H15.8307C14.3406 8.37398 13.8748 9.29875 13.8748 10.2488V12.4999H17.2025L16.671 15.9695H13.8747V24.3548C19.6123 23.4553 23.9998 18.4907 23.9998 12.4999L24 12.5Z" fill="${
+        theme === "black" ? "white" : "black"
+      }"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M16.5934 16.2833L17.1251 12.8137H13.7973V10.5626C13.7973 9.61422 14.2614 8.68778 15.7532 8.68778H17.2669V5.73457C17.2669 5.73457 15.8933 5.5 14.5804 5.5C11.8399 5.5 10.0477 7.16057 10.0477 10.1694V12.8138H7V16.2834H10.0477V24.6688C10.6586 24.7648 11.2846 24.8138 11.9225 24.8138C12.5604 24.8138 13.1865 24.7631 13.7973 24.6688V16.2834H16.5936L16.5934 16.2833Z" fill="${
+        theme === "black" ? "black" : "white"
+      }"/>
+</svg>`
+}
+</button>`;
+
+const whatsappLoginHtml = (
+  theme,
+  customColor
+) => `<button id='whatsapp-login' type='button'>
+<svg
+  viewBox="0 0 24 24"
+  fill="none"
+  width="24"
+  height="25"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+  <g
+    id="SVGRepo_tracerCarrier"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  ></g>
+  <g id="SVGRepo_iconCarrier">
+    <path
+      fill-rule="evenodd"
+      clip-rule="evenodd"
+      d="M3.50002 12C3.50002 7.30558 7.3056 3.5 12 3.5C16.6944 3.5 20.5 7.30558 20.5 12C20.5 16.6944 16.6944 20.5 12 20.5C10.3278 20.5 8.77127 20.0182 7.45798 19.1861C7.21357 19.0313 6.91408 18.9899 6.63684 19.0726L3.75769 19.9319L4.84173 17.3953C4.96986 17.0955 4.94379 16.7521 4.77187 16.4751C3.9657 15.176 3.50002 13.6439 3.50002 12ZM12 1.5C6.20103 1.5 1.50002 6.20101 1.50002 12C1.50002 13.8381 1.97316 15.5683 2.80465 17.0727L1.08047 21.107C0.928048 21.4637 0.99561 21.8763 1.25382 22.1657C1.51203 22.4552 1.91432 22.5692 2.28599 22.4582L6.78541 21.1155C8.32245 21.9965 10.1037 22.5 12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5ZM14.2925 14.1824L12.9783 15.1081C12.3628 14.7575 11.6823 14.2681 10.9997 13.5855C10.2901 12.8759 9.76402 12.1433 9.37612 11.4713L10.2113 10.7624C10.5697 10.4582 10.6678 9.94533 10.447 9.53028L9.38284 7.53028C9.23954 7.26097 8.98116 7.0718 8.68115 7.01654C8.38113 6.96129 8.07231 7.046 7.84247 7.24659L7.52696 7.52195C6.76823 8.18414 6.3195 9.2723 6.69141 10.3741C7.07698 11.5163 7.89983 13.314 9.58552 14.9997C11.3991 16.8133 13.2413 17.5275 14.3186 17.8049C15.1866 18.0283 16.008 17.7288 16.5868 17.2572L17.1783 16.7752C17.4313 16.5691 17.5678 16.2524 17.544 15.9269C17.5201 15.6014 17.3389 15.308 17.0585 15.1409L15.3802 14.1409C15.0412 13.939 14.6152 13.9552 14.2925 14.1824Z"
+      fill="${
+        theme === "match" || theme === "black"
+          ? "#ffffff"
+          : theme === "white"
+          ? "#000000"
+          : theme === "matchOutline"
+          ? "#25d366"
+          : customColor
+      }"
+    ></path>
+  </g>
+</svg>
+</button>`;
+
+const microsoftLoginHtml = (
+  theme,
+  customColor
+) => `<button id='microsoft-login' type='button'>
+<svg
+xmlns="http://www.w3.org/2000/svg"
+width="25"
+height="25"
+viewBox="0 0 48 48">
+<path fill="${
+  theme === "match" || theme == "matchOutline"
+    ? "#ff5722"
+    : theme === "black"
+    ? "#ffffff"
+    : theme === "white"
+    ? "#000000"
+    : customColor
+}" d="M6 6H22V22H6z" transform="rotate(-180 14 14)"></path>
+<path
+  fill="${
+    theme === "match" || theme == "matchOutline"
+      ? "#4caf50"
+      : theme === "black"
+      ? "#ffffff"
+      : theme === "white"
+      ? "#000000"
+      : customColor
+  }"
+  d="M26 6H42V22H26z"
+  transform="rotate(-180 34 14)"></path>
+<path
+  fill="${
+    theme === "match" || theme == "matchOutline"
+      ? "#ffc107"
+      : theme === "black"
+      ? "#ffffff"
+      : theme === "white"
+      ? "#000000"
+      : customColor
+  }"
+  d="M26 26H42V42H26z"
+  transform="rotate(-180 34 34)"></path>
+<path fill="${
+  theme === "match" || theme == "matchOutline"
+    ? "#03a9f4"
+    : theme === "black"
+    ? "#ffffff"
+    : theme === "white"
+    ? "#000000"
+    : customColor
+}" d="M6 26H22V42H6z" transform="rotate(-180 14 34)"></path>
+</svg>
+</button>`;
+
+const twitterLoginHtml = (
+  theme,
+  customColor
+) => `<button id='twitter-login' type='button'>
+<svg
+xmlns="http://www.w3.org/2000/svg"
+width="25"
+height="25"
+viewBox="0 0 48 48">
+<polygon fill="${
+  theme === "match" || theme === "black"
+    ? "#ffffff"
+    : theme === "matchOutline" || theme === "white"
+    ? "#000000"
+    : customColor
+}" points="41,6 9.929,42 6.215,42 37.287,6"></polygon>
+<polygon
+  fill="${
+    theme === "match" || theme === "black"
+      ? "#000000"
+      : theme === "matchOutline" || theme === "white"
+      ? "#ffffff"
+      : customColor
+  }"
+  fill-rule="evenodd"
+  points="31.143,41 7.82,7 16.777,7 40.1,41"
+  clip-rule="evenodd"></polygon>
+<path
+  fill="${
+    theme === "match" || theme === "black"
+      ? "#ffffff"
+      : theme === "matchOutline" || theme === "white"
+      ? "#000000"
+      : customColor
+  }"
+  d="M15.724,9l20.578,30h-4.106L11.618,9H15.724 M17.304,6H5.922l24.694,36h11.382L17.304,6L17.304,6z"></path>
+</svg> 
+</button>`;
