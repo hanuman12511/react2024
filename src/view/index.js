@@ -12,8 +12,6 @@ import { useEffect, useState } from 'react';
 function App(){
     const [db1 ,setDb] = useState('')
     useEffect(()=>{
-       
-       
         const firebaseConfig = {
           apiKey: "AIzaSyAuSazLAGreR3_MQ_9b24LAnoFnIH7eBQ4",
           authDomain: "reactjs-9a5ff.firebaseapp.com",
@@ -23,19 +21,14 @@ function App(){
           appId: "1:711876869856:web:fe2c67befa29bd99f05a85",
           measurementId: "G-FE0GDNFJ9W"
         };
-        
-       
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
-        console.log(app);
+        console.log("app=",app);
         console.log(analytics);
         const db = getFirestore(app);
         console.log(db);
         //setDb(db)
-
         reactData(db)
-
-        
     },[])
 
     async function reactData(db){

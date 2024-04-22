@@ -10,6 +10,7 @@ import Login from '../screen/Login';
 import { useEffect, useState } from 'react';
 import Logout from '../screen/Logout';
 import Addtocart from '../screen/Addtocart';
+import Payment from '../screen/Payment';
 
 function  RouterNav(){
    const [userdata,setUserData] = useState('')
@@ -43,6 +44,7 @@ function  RouterNav(){
                 <Route path='/details' Component={Details}/>
                 <Route path='/logout' Component={Logout}/>
                 <Route path='/addtocart' Component={Addtocart}/>
+                <Route path='/payment' Component={Payment}/>
                
                { userdata!==null?<>
                 <Route path='/' Component={Home}/>
