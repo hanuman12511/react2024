@@ -19,6 +19,17 @@ export default function Addtocart(){
         if(qty>1)
         setQty(qty-1)
     }
+
+
+    function Paymentget(){
+        if(localStorage.getItem("user")!==null){
+            nav("/payment")
+            }
+            else{
+                nav("/login")
+            }
+        
+    }
     return(
         <Container style={{marginTop:30,marginBottom:50}}>
             <Row>
@@ -50,7 +61,7 @@ export default function Addtocart(){
                 <p>Estimated total Rs. {productdetails.rate*qty}/-</p>
 
                 <p>Taxes, discounts and shipping calculated at checkout</p>
-                <Button variant="primary" onClick={()=>{nav("/payment")}}>{'Check out'}</Button>
+                <Button variant="primary" onClick={Paymentget}>{'Check out'}</Button>
                 </Col>
             </Row>
         </Container>

@@ -4,7 +4,8 @@ import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-
+import Carousel from 'react-multi-carousel';
+import 'react-multi-carousel/lib/styles.css';
 function Shop(){
     const [product,setProduct] = useState('')
 
@@ -16,11 +17,14 @@ console.log("product",product);
         setProduct(shop)
 
     },[])
-
+   
 
     return(
         <>
         <Container>
+            <Row>
+       
+            </Row>
             <Row>
                 {
                   product&&product.map(value=>(

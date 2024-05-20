@@ -9,9 +9,11 @@ import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 import { collection, addDoc ,getDocs} from "firebase/firestore"; 
 import { useEffect, useState } from 'react';
+import { Provider } from 'react-redux';
+import store from './data/store'; 
 function App(){
     const [db1 ,setDb] = useState('')
-    useEffect(()=>{
+   /*  useEffect(()=>{
         const firebaseConfig = {
           apiKey: "AIzaSyAuSazLAGreR3_MQ_9b24LAnoFnIH7eBQ4",
           authDomain: "reactjs-9a5ff.firebaseapp.com",
@@ -29,7 +31,7 @@ function App(){
         console.log(db);
         //setDb(db)
         reactData(db)
-    },[])
+    },[]) */
 
     async function reactData(db){
         const querySnapshot = await getDocs(collection(db, "users"));
@@ -54,12 +56,14 @@ function App(){
      
         }
     return(
+      <Provider store={store}>
         <BrowserRouter>
        {/*  <Header/> */}
       <HeaderComponent/> 
             <RouterNav/>
            <FooterComponent/>
         </BrowserRouter>
+        </Provider>
 
     )
 }
