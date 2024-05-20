@@ -13,6 +13,7 @@ import Addtocart from '../screen/Addtocart';
 import Payment from '../screen/Payment';
 import Counter from '../screen/Counter';
 import Pagination from '../screen/Pagination';
+import HomeAntid from '../screen/HomeAntid';
 
 function  RouterNav(){
    const [userdata,setUserData] = useState('')
@@ -50,12 +51,14 @@ function  RouterNav(){
                
                { userdata!==null?<>
                {/*  <Route path='/' Component={Counter}/> */}
-            <Route path='/' Component={Pagination}/> 
+         {/*    <Route path='/' Component={Pagination}/>  */}
+             <Route path='/' Component={HomeAntid}/>  
                 <Route path='/h' Component={Home}/>
                </>
                :
                 <>
-                    <Route path='/' Component={Pagination}/> 
+                <Route path='/' Component={HomeAntid}/>
+                   {/*  <Route path='/' Component={Pagination}/>  */}
                <Route path='/login' Component={Login}/>
              {/*   <Route path='/' Component={Counter}/> */}
                 </>
